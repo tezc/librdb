@@ -232,6 +232,19 @@ static void test_r2r_set_lp(void **state) {
     runWithAndWithoutRestore("set_is_v11.rdb");
 }
 
+
+static void test_r2r_plain_zset(void **state) {
+    UNUSED(state);
+    return;
+    //runWithAndWithoutRestore("zset_v6.rdb");
+}
+
+
+static void test_r2r_zset_lp(void **state) {
+    UNUSED(state);
+    runWithAndWithoutRestore("zset_lp_v11.rdb");
+}
+
 /*************************** group_rdb_to_resp *******************************/
 int group_rdb_to_resp(void) {
     const struct CMUnitTest tests[] = {
@@ -257,6 +270,10 @@ int group_rdb_to_resp(void) {
             cmocka_unit_test(test_r2r_plain_set),
             cmocka_unit_test(test_r2r_set_is),
             cmocka_unit_test(test_r2r_set_lp),
+
+            /* zset */
+            cmocka_unit_test(test_r2r_plain_zset),
+            cmocka_unit_test(test_r2r_zset_lp),
 
             /* misc */
             cmocka_unit_test(test_r2r_multiple_lists_and_strings),

@@ -378,6 +378,34 @@ static RdbRes toRespFunction(RdbParser *p, void *userData, RdbBulk func) {
 
 }
 
+static RdbRes toRespZset(RdbParser *p, void *userData, RdbBulk member, double score) {
+    RdbxToResp *ctx = userData;
+    char keyLenStr[32], valLenStr[32], scoreLenStr[32];
+
+    int valLen = RDB_bulkLen(p, member);
+
+    struct iovec iov[10];
+    /* write RPUSH */
+    IOV_CONST(&iov[0], "*4\r\n$4\r\nZADD\r\n$");
+    /* write key */
+    IOV_VALUE(&iov[1], ctx->keyCtx.keyLen, keyLenStr);
+    IOV_STRING(&iov[2], ctx->keyCtx.key, ctx->keyCtx.keyLen);
+    IOV_CONST(&iov[3], "\r\n$");
+
+    /* write score */
+    char score_str[64];
+    int len = ld2string(score_str, sizeof(score_str), score, LD_STR_HUMAN);
+    IOV_VALUE(&iov[4], len, scoreLenStr);
+    IOV_STRING(&iov[5], score_str, strlen(score_str));
+    IOV_CONST(&iov[6], "\r\n$");
+
+    /* write member */
+    IOV_VALUE(&iov[7], valLen, valLenStr);
+    IOV_STRING(&iov[8], member, valLen);
+    IOV_CONST(&iov[9], "\r\n");
+    return writevWrap(ctx, iov, 10, 1, 1);
+}
+
 /*** Handling raw ***/
 
 static RdbRes toRespRawBegin(RdbParser *p, void *userData, size_t size) {
@@ -518,6 +546,7 @@ _LIBRDB_API RdbxToResp *RDBX_createHandlersToResp(RdbParser *p, RdbxToRespConf *
     dataCb.handleSetMember = toRespSet;
     dataCb.handleEndRdb = toRespEndRdb;
     dataCb.handleFunction = toRespFunction;
+    dataCb.handleZsetMember = toRespZset;
     RDB_createHandlersData(p, &dataCb, ctx, deleteRdbToRespCtx);
 
     RdbHandlersRawCallbacks rawCb;

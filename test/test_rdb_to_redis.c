@@ -200,6 +200,16 @@ static void test_rdb_to_redis_function(void **state) {
     test_rdb_to_redis_common(DUMP_FOLDER("function.rdb"), 1, 1, NULL);
 }
 
+static void test_rdb_to_redis_plain_zset(void **state) {
+    UNUSED(state);
+    //test_rdb_to_redis_common(DUMP_FOLDER("plain_set_v6.rdb"), 1, 1, NULL);
+}
+
+static void test_rdb_to_redis_zset_lp(void **state) {
+    UNUSED(state);
+    test_rdb_to_redis_common(DUMP_FOLDER("zset_lp_v11.rdb"), 1, 1, NULL);
+}
+
 /* iff 'delKeyBeforeWrite' is not set, then the parser will return an error on
  * loading 100_lists.rdb ("mylist1 mylist2 ... mylist100") on key 'mylist62'
  * Because key `mylist62` created earlier with a string value.  */
@@ -272,6 +282,9 @@ int group_rdb_to_redis() {
             cmocka_unit_test_setup(test_rdb_to_redis_plain_set, setupTest),
             cmocka_unit_test_setup(test_rdb_to_redis_set_is, setupTest),
             cmocka_unit_test_setup(test_rdb_to_redis_set_lp, setupTest),
+
+            /* zset */
+            cmocka_unit_test_setup(test_rdb_to_redis_zset_lp, setupTest),
 
             /* expired keys */
             cmocka_unit_test_setup(test_rdb_to_redis_set_expired, setupTest),

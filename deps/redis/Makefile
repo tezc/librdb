@@ -4,7 +4,7 @@ OBJECTS = $(patsubst %,%.o,$(SOURCES))
 CC             = gcc
 STD            = -std=c99
 WARNS          = -Wall -Wextra -pedantic -Werror
-CFLAGS         = -fPIC -O3 $(STD) $(WARNS)
+CFLAGS         = -fPIC -O0 $(STD) $(WARNS)
 DEBUG          = -g3 -DDEBUG=1
 LIBS           =
 

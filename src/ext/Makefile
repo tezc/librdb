@@ -17,7 +17,7 @@ CC       = gcc
 STD      = -std=c99
 STACK    = -fstack-protector-all -Wstack-protector
 WARNS    = -Wall -Wextra -pedantic -Werror
-CFLAGS   = -fPIC -O3 $(STD) $(STACK) $(WARNS) $(EXTERN_RP_CONFIG)
+CFLAGS   = -fPIC -O0 $(STD) $(STACK) $(WARNS) $(EXTERN_RP_CONFIG)
 DEBUG    = -g3 -DDEBUG=1
 LDFLAGS  =
 LIBS     = -L $(LIB_DIR) -l $(LIB_NAME)

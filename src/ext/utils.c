@@ -17,7 +17,7 @@
 int printHexDump(const char *input, size_t len, char *obuf, int obuflen) {
     size_t i;
     int iout=0, j, llen = 16; /* line len */
-    unsigned char buff[llen + 10];
+    unsigned char buff[32 + 10];
 
     if (input == NULL || len <= 0 || obuf == NULL || obuflen < 200 || obuflen > 0xFFFFFF)
         return -1;

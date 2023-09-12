@@ -139,6 +139,8 @@ typedef enum ParsingElementType {
     PE_SET_IS,
     PE_SET_LP,
     PE_FUNCTION,
+    PE_ZSET,
+    PE_ZSET_LP,
 
     /* parsing raw data types */
     PE_RAW_NEW_KEY,
@@ -154,6 +156,8 @@ typedef enum ParsingElementType {
     PE_RAW_SET,
     PE_RAW_SET_IS,
     PE_RAW_SET_LP,
+    PE_RAW_ZSET,
+    PE_RAW_ZSET_LP,
 
     PE_END_OF_FILE,
     PE_MAX
@@ -446,6 +450,8 @@ RdbStatus elementSet(RdbParser *p);
 RdbStatus elementSetIS(RdbParser *p);
 RdbStatus elementSetLP(RdbParser *p);
 RdbStatus elementFunction(RdbParser *p);
+RdbStatus elementZset(RdbParser *p);
+RdbStatus elementZsetLP(RdbParser *p);
 
 /*** Raw Parsing Elements ***/
 RdbStatus elementRawNewKey(RdbParser *p);
@@ -461,5 +467,8 @@ RdbStatus elementRawHashZM(RdbParser *p);
 RdbStatus elementRawSet(RdbParser *p);
 RdbStatus elementRawSetIS(RdbParser *p);
 RdbStatus elementRawSetLP(RdbParser *p);
+RdbStatus elementRawZset(RdbParser *p);
+RdbStatus elementRawZsetLP(RdbParser *p);
+
 
 #endif /*LIBRDB_PARSER_H*/

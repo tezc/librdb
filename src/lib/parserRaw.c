@@ -583,6 +583,63 @@ RdbStatus elementRawSet(RdbParser *p) {
     }
 }
 
+RdbStatus elementRawZsetLP(RdbParser *p) {
+    return singleStringTypeHandling(p, listpackValidateIntegrityCb, "elementRawZsetLP");
+}
+
+RdbStatus elementRawZset(RdbParser *p) {
+    enum RAW_ZSET_STATES {
+        ST_RAW_ZSET_HEADER=0,             /* Retrieve number of items */
+        ST_RAW_ZSET_NEXT_ITEM_CALL_STR,   /* Process next item. Call PE_RAW_STRING as sub-element */
+        ST_RAW_ZSET_NEXT_ITEM_STR_RETURN, /* integ check of the returned string from PE_RAW_STRING */
+        /* If more items, goto state #1, else next PE is END_KEY */
+    } ;
+
+    ElementRawSetCtx *setCtx = &p->elmCtx.rawSet;
+    RawContext *rawCtx = &p->rawCtx;
+
+    switch (p->elmCtx.state) {
+
+        case ST_RAW_ZSET_HEADER: {
+            int headerLen = 0;
+
+            aggMakeRoom(p, 10); /* worse case 9 bytes for len */
+
+            IF_NOT_OK_RETURN(rdbLoadLen(p, NULL, &setCtx->numItems,
+                                        (unsigned char *) rawCtx->at, &headerLen));
+
+            /*** ENTER SAFE STATE ***/
+
+            IF_NOT_OK_RETURN(cbHandleBegin(p, DATA_SIZE_UNKNOWN_AHEAD));
+            IF_NOT_OK_RETURN(aggUpdateWrittenCbFrag(p, headerLen));
+        }
+            updateElementState(p, ST_RAW_ZSET_NEXT_ITEM_CALL_STR); /* fall-thru */
+
+        case ST_RAW_ZSET_NEXT_ITEM_CALL_STR:
+            return subElementCall(p, PE_RAW_STRING, ST_RAW_ZSET_NEXT_ITEM_STR_RETURN);
+
+        case ST_RAW_ZSET_NEXT_ITEM_STR_RETURN: {
+            /*** ENTER SAFE STATE (no rdb read)***/
+
+            size_t len;
+            unsigned char *encodedItem;
+
+            /* return from sub-element string parsing */
+            subElementCallEnd(p, (char **) &encodedItem, &len);
+
+            if (--setCtx->numItems == 0)
+                return nextParsingElement(p, PE_RAW_END_KEY); /* done */
+
+            return updateElementState(p, ST_RAW_ZSET_NEXT_ITEM_CALL_STR);
+        }
+
+        default:
+            RDB_reportError(p, RDB_ERR_PLAIN_SET_INVALID_STATE,
+                            "elementRawSet() : invalid parsing element state: %d", p->elmCtx.state);
+            return RDB_STATUS_ERROR;
+    }
+}
+
 /*** various functions ***/
 
 static inline RdbStatus cbHandleFrag(RdbParser *p, BulkInfo *binfo) {

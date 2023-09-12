@@ -64,6 +64,9 @@ struct ParsingElementInfo peInfo[PE_MAX] = {
         [PE_SET_IS]           = {elementSetIS, "elementSetIS", "Parsing set Intset"},
         [PE_SET_LP]           = {elementSetLP, "elementSetLP", "Parsing set Listpack"},
         [PE_FUNCTION]         = {elementFunction, "elementFunction", "Parsing Function"},
+        /* zset */
+        [PE_ZSET]             = {elementZset, "elementZset", "Parsing zset"},
+        [PE_ZSET_LP]          = {elementZsetLP, "elementZsetLP", "Parsing zset Listpack"},
 
         /*** parsing raw data (RDB_LEVEL_RAW) ***/
 
@@ -85,6 +88,9 @@ struct ParsingElementInfo peInfo[PE_MAX] = {
         [PE_RAW_SET]          = {elementRawSet, "elementRawSet", "Parsing raw set"},
         [PE_RAW_SET_IS]       = {elementRawSetIS, "elementRawSetIS", "Parsing raw set Intset"},
         [PE_RAW_SET_LP]       = {elementRawSetLP, "elementRawSetLP", "Parsing raw set Listpack"},
+        /* zset */
+        [PE_RAW_ZSET]          = {elementRawZset, "elementRawZset", "Parsing raw zset"},
+        [PE_RAW_ZSET_LP]       = {elementRawZsetLP, "elementRawZsetLP", "Parsing raw zset Listpack"},
 };
 
 /* Strings in ziplist/listpacks are embedded without '\0' termination. To avoid
@@ -1232,10 +1238,11 @@ RdbStatus elementNextRdbType(RdbParser *p) {
         case RDB_OPCODE_EOF:                return nextParsingElement(p, PE_END_OF_FILE);
 
         /* zset (TBD) */
+        case RDB_TYPE_ZSET_LISTPACK:        return nextParsingElementKeyValue(p, PE_RAW_ZSET_LP, PE_ZSET_LP);
         case RDB_TYPE_ZSET:
         case RDB_TYPE_ZSET_2:
         case RDB_TYPE_ZSET_ZIPLIST:
-        case RDB_TYPE_ZSET_LISTPACK:
+
 
         /* module (TBD) */
         case RDB_OPCODE_MODULE_AUX:
@@ -1626,6 +1633,103 @@ RdbStatus elementSetLP(RdbParser *p) {
                              RDB_LEVEL_DATA,
                              rdbData.handleSetMember,
                              embBulk.binfo->ref);
+
+            iterator = lpNext(listpackBulk->ref, iterator);
+        }
+    }
+    return nextParsingElement(p, PE_END_KEY);
+}
+
+RdbStatus elementZset(RdbParser *p) {
+    ElementCtx *ctx = &p->elmCtx;
+    enum SET_STATES {
+        ST_ZSET_HEADER=0, /*  Retrieve number of nodes */
+        ST_ZSET_NEXT_ITEM /* Process next node and callback to app (Iterative) */
+    } ;
+    switch (ctx->state) {
+        case ST_ZSET_HEADER:
+            IF_NOT_OK_RETURN(rdbLoadLen(p, NULL, (uint64_t *) &(ctx->key.numItemsHint), NULL, NULL));
+
+            /*** ENTER SAFE STATE ***/
+
+            ctx->set.left = ctx->key.numItemsHint;
+
+            updateElementState(p, ST_ZSET_NEXT_ITEM); /* fall-thru */
+
+        case ST_ZSET_NEXT_ITEM: {
+            BulkInfo *binfoItem;
+            IF_NOT_OK_RETURN(rdbLoadString(p, RQ_ALLOC_APP_BULK, NULL, &binfoItem));
+
+            /*** ENTER SAFE STATE ***/
+
+            registerAppBulkForNextCb(p, binfoItem);
+            if (p->elmCtx.key.handleByLevel == RDB_LEVEL_STRUCT)
+                CALL_HANDLERS_CB(p, NOP, RDB_LEVEL_STRUCT, rdbStruct.handleSetPlain, binfoItem->ref);
+            else
+                CALL_HANDLERS_CB(p, NOP, RDB_LEVEL_DATA, rdbData.handleSetMember, binfoItem->ref);
+
+            return (--ctx->set.left) ? updateElementState(p, ST_ZSET_NEXT_ITEM) : nextParsingElement(p, PE_END_KEY);
+        }
+        default:
+            RDB_reportError(p, RDB_ERR_PLAIN_SET_INVALID_STATE,
+                            "elementZset() : invalid parsing element state: %d", ctx->state);
+            return RDB_STATUS_ERROR;
+    }
+}
+
+RdbStatus elementZsetLP(RdbParser *p) {
+    unsigned char *iterator, *item1, *item2;
+    unsigned int item1Len, item2Len;
+    long long item1Val, item2Val;
+    BulkInfo *listpackBulk;
+
+    IF_NOT_OK_RETURN(rdbLoadString(p, RQ_ALLOC_APP_BULK, NULL, &listpackBulk));
+
+    /*** ENTER SAFE STATE ***/
+
+    /* Doesn't check for duplication */
+    if (!lpValidateIntegrity(listpackBulk->ref, listpackBulk->len, p->deepIntegCheck, NULL, 0)) {
+        RDB_reportError(p, RDB_ERR_ZSET_LP_INTEG_CHECK, "elementZsetLP(): LISTPACK integrity check failed");
+        return RDB_STATUS_ERROR;
+    }
+
+    /* TODO: handle empty listpack */
+    p->elmCtx.key.numItemsHint = lpLength(listpackBulk->ref);
+
+    if (p->elmCtx.key.handleByLevel == RDB_LEVEL_STRUCT) {
+        registerAppBulkForNextCb(p, listpackBulk);
+        CALL_HANDLERS_CB(p, NOP, RDB_LEVEL_STRUCT, rdbStruct.handleZsetLP, listpackBulk->ref);
+    } else {
+        iterator = lpFirst(listpackBulk->ref);
+        while (iterator) {
+            EmbeddedBulk embBulk;
+            item1 = lpGetValue(iterator, &item1Len, &item1Val);
+            iterator = lpNext(listpackBulk->ref, iterator);
+            item2 = lpGetValue(iterator, &item2Len, &item2Val);
+
+            double score;
+            if (item2) {
+                if (!string2d((const char*) item2, item2Len, &score)) {
+                    RDB_reportError(p, RDB_ERR_SET_LP_INTEG_CHECK,
+                                    "elementZsetLP(): failed to parse string to double: %.*s",
+                                    item2Len, item2);
+
+                    return RDB_STATUS_ERROR;
+                }
+            } else {
+                score = (double) item2Val;
+            }
+
+            if (!allocEmbeddedBulk(p, item1, item1Len, item1Val, &embBulk))
+                return RDB_STATUS_ERROR;
+
+            registerAppBulkForNextCb(p, embBulk.binfo);
+            CALL_HANDLERS_CB(p,
+                             restoreEmbeddedBulk(&embBulk);, /*finalize*/
+                             RDB_LEVEL_DATA,
+                             rdbData.handleZsetMember,
+                             embBulk.binfo->ref,
+                             score);
 
             iterator = lpNext(listpackBulk->ref, iterator);
         }

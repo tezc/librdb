@@ -17,7 +17,7 @@ STD         = -std=c99
 STACK       = -fstack-protector-all -Wstack-protector
 WARNS       = -Wall -Wextra -pedantic -Werror -Wno-unused-function
 
-CFLAGS      = -fPIC -O3 $(STD) $(STACK) $(WARNS)
+CFLAGS      = -fPIC -O0 $(STD) $(STACK) $(WARNS)
 DEBUG       = -g3 -DDEBUG=1
 LIBS        = -l cmocka -L /usr/lib -L $(LIB_DIR) -l $(LIB_NAME) -l $(LIB_NAME_EXT)
 LIBS_STATIC = -l cmocka -L /usr/lib -L $(LIB_DIR) -l:lib$(LIB_NAME_EXT).a
