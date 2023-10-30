@@ -12,7 +12,6 @@
  * in the README.md file as an introduction to this file implementation.
  */
 
-#include <endian.h>
 #include <assert.h>
 #include <stdarg.h>
 #include <string.h>

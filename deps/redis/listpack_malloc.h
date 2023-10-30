@@ -39,12 +39,18 @@
 #ifndef LISTPACK_ALLOC_H
 #define LISTPACK_ALLOC_H
 //#include "zmalloc.h"
-#include "malloc.h"
+#if defined(__APPLE__)
+#include <malloc/malloc.h>
+#define librdb_malloc_size(p) malloc_size(p)
+#else
+#include <malloc.h>
+#define librdb_malloc_size(p) malloc_usable_size(p)
+#endif
 /* We use zmalloc_usable/zrealloc_usable instead of zmalloc/zrealloc
  * to ensure the safe invocation of 'zmalloc_usable_size().
  * See comment in zmalloc_usable_size(). */
 #define lp_malloc(sz) malloc(sz)
 #define lp_realloc(ptr,sz) realloc(ptr,sz)
 #define lp_free free
-#define lp_malloc_size malloc_usable_size
+#define lp_malloc_size librdb_malloc_size
 #endif

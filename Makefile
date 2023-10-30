@@ -29,7 +29,7 @@ clean:
 distclean: clean
 
 example: all
-	cd examples && export LD_LIBRARY_PATH=../lib && ./example1
+	cd examples && export LD_LIBRARY_PATH=../lib && export DYLD_FALLBACK_LIBRARY_PATH=../lib && ./example1
 
 # ------------------------- DEBUG -------------------------------------
 

@@ -19,7 +19,7 @@ STACK       = -fstack-protector-all -Wstack-protector
 WARNS       = -Wall -Wextra -pedantic -Werror
 CFLAGS      = -fPIC $(OPTIMIZATION) $(STD) $(STACK) $(WARNS)
 DEBUG       = -g3 -DDEBUG=1
-LIBS        = -L /usr/lib -L $(LIB_DIR) -l:$(LIB_NAME_EXT)  -l:$(LIB_NAME)
+LIBS        = $(LIB_DIR)/$(LIB_NAME_EXT) $(LIB_DIR)/$(LIB_NAME)
 
 ifeq ($(BUILD_TLS),yes)
 CFLAGS+=-DUSE_OPENSSL=1

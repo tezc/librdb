@@ -1,5 +1,6 @@
 #include <string.h>
 #include <assert.h>
+#include <inttypes.h>
 #include <sys/uio.h>
 #include "common.h"
 
@@ -634,8 +635,8 @@ static RdbRes toRespStreamMetaData(RdbParser *p, void *userData, RdbStreamMeta *
     /* take care to reset it for next stream-item */
     ctx->streamCtx.xaddStartEndCounter = 0;
 
-    int idLen = snprintf(idStr, sizeof(idStr), "%lu-%lu",meta->lastID.ms,meta->lastID.seq);
-    int maxDelEntryIdLen = snprintf(maxDelEntryId, sizeof(maxDelEntryId), "%lu-%lu", meta->maxDelEntryID.ms, meta->maxDelEntryID.seq);
+    int idLen = snprintf(idStr, sizeof(idStr), "%"PRIu64"-%"PRIu64,meta->lastID.ms,meta->lastID.seq);
+    int maxDelEntryIdLen = snprintf(maxDelEntryId, sizeof(maxDelEntryId), "%"PRIu64"-%"PRIu64, meta->maxDelEntryID.ms, meta->maxDelEntryID.seq);
 
     RdbxRespWriterStartCmd startCmd;
     startCmd.cmd = "XSETID";
@@ -682,11 +683,11 @@ static RdbRes toRespStreamItem(RdbParser *p, void *userData, RdbStreamID *id, Rd
         startCmdRef = &startCmd;
 
         /* writev XADD */
-        int cmdLen = snprintf(cmd, sizeof(cmd), "*%lu\r\n$4\r\nXADD", 3 + (itemsLeft + 1) * 2);
+        int cmdLen = snprintf(cmd, sizeof(cmd),  "*%"PRIi64"\r\n$4\r\nXADD", 3 + (itemsLeft + 1) * 2);
         IOV_STRING(&iov[iovs++], cmd, cmdLen);
         IOV_LENGTH(&iov[iovs++], ctx->keyCtx.keyLen, keyLenStr);
         IOV_STRING(&iov[iovs++], ctx->keyCtx.key, ctx->keyCtx.keyLen);
-        int idLen = snprintf(idStr, sizeof(idStr), "%lu-%lu",id->ms,id->seq);
+        int idLen = snprintf(idStr, sizeof(idStr), "%"PRIu64"-%"PRIu64,id->ms,id->seq);
         IOV_LENGTH(&iov[iovs++], idLen, idLenStr);
         IOV_STRING(&iov[iovs++], idStr, idLen);
 
@@ -727,7 +728,7 @@ static RdbRes toRespStreamNewCGroup(RdbParser *p, void *userData, RdbBulk grpNam
     if(!(ctx->streamCtx.groupPel = raxNew()))
         return RDB_ERR_FAIL_ALLOC;
 
-    int idLen = snprintf(idStr, sizeof(idStr), "%lu-%lu",meta->lastId.ms,meta->lastId.seq);
+    int idLen = snprintf(idStr, sizeof(idStr), "%"PRIu64"-%"PRIu64,meta->lastId.ms,meta->lastId.seq);
 
     RdbxRespWriterStartCmd startCmd;
     startCmd.cmd = "XGROUP";
@@ -828,7 +829,7 @@ static RdbRes toRespStreamConsumerPendingEntry(RdbParser *p, void *userData, Rdb
     IOV_LENGTH(&iov[iovs++], ctx->streamCtx.consNameLen, cNameLenStr);
     IOV_STRING(&iov[iovs++], ctx->streamCtx.consName, ctx->streamCtx.consNameLen);
     /* trailer of the command */
-    int idLen = snprintf(idStr, sizeof(idStr), "%lu-%lu",streamId->ms, streamId->seq);
+    int idLen = snprintf(idStr, sizeof(idStr), "%"PRIu64"-%"PRIu64,streamId->ms, streamId->seq);
     int sentTimeLen = ll2string(sentTime, sizeof(sentTime), pe->deliveryTime);
     int sentCountLen = ll2string(sentCount, sizeof(sentCount), pe->deliveryCount);
     int cmdTrailerLen = snprintf(cmdTrailer, sizeof(cmdTrailer),
